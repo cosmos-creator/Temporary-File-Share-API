@@ -1,4 +1,5 @@
 from fastapi import APIRouter, UploadFile, Depends
+from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from pathlib import Path
@@ -61,3 +62,14 @@ def upload(file: UploadFile, db: Session = Depends(get_db)):
         "short_code": code,
         "saved_to": str(destination)
         }
+
+@router.get("/{code}")
+async def download(code: str, db: Session = Depends(get_db)):
+    statement = select(UploadedFile).where(UploadedFile.short_code == code)
+    file_record = db.execute(statement).scalar_one_or_none()
+
+    extension = Path(file_record.original_filename).suffix
+    return FileResponse(
+        path= Path("./data/uploads/") / f"{code}{extension}",
+        filename= file_record.original_filename,
+    )
