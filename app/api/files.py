@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, Depends, HTTPException
+from fastapi import APIRouter, UploadFile, Depends, HTTPException, Request
 from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -29,14 +29,19 @@ async def ping():
     return {"ping":"pong"}
 
 @router.post("/uploadfile/")
-def upload(file: UploadFile, db: Session = Depends(get_db)):
+async def upload(request: Request, file: UploadFile, db: Session = Depends(get_db)):
+
+    GB_IN_BYTES = 1073741824
+    content_length = request.headers.get("content-length")
+
+    if content_length and int(content_length) > GB_IN_BYTES * 2:
+        raise HTTPException(status_code=413, detail="File size exceeds 2GB.")
 
     # check if empty file
     if file.size == 0:
-        raise HTTPException(status_code=400, detail="Rmpty file not allowed.")
+        raise HTTPException(status_code=400, detail="Empty file not allowed.")
     
     # check if file is too large (compared in BYTES)
-    GB_IN_BYTES = 1073741824
     if file.size > (2 * GB_IN_BYTES):
         raise HTTPException(status_code=413, detail="File size exceeds 2GB.")
 
