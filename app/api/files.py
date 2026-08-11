@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, Depends
+from fastapi import APIRouter, UploadFile, Depends, HTTPException
 from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -67,6 +67,9 @@ def upload(file: UploadFile, db: Session = Depends(get_db)):
 async def download(code: str, db: Session = Depends(get_db)):
     statement = select(UploadedFile).where(UploadedFile.short_code == code)
     file_record = db.execute(statement).scalar_one_or_none()
+
+    if file_record is None:
+        raise HTTPException(status_code=404, detail="FIle not found")
 
     extension = Path(file_record.original_filename).suffix
     return FileResponse(
