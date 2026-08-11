@@ -30,7 +30,7 @@ async def ping():
 
 @router.post("/uploadfile/")
 def upload(file: UploadFile, db: Session = Depends(get_db)):
-    
+
     # check if empty file
     if file.size == 0:
         raise HTTPException(status_code=400, detail="Rmpty file not allowed.")
@@ -50,27 +50,40 @@ def upload(file: UploadFile, db: Session = Depends(get_db)):
     # path to store files at
     upload_dir = Path("./data/uploads")
 
-    # create dir if it doesnt exist
-    upload_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        # create dir if it doesnt exist
+        upload_dir.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        raise HTTPException(status_code=500, detail="Failed to prepare upload directory")
 
+    # get file extension
     extension = Path(file.filename).suffix
+
     # complete file path(relative) to the file
     destination = upload_dir / f"{code}{extension}"
 
-    # copy file data in chunks in bytes so huge data is not loaded into RAM
-    with destination.open("wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-
+    try:
+        # copy file data in chunks in bytes so huge data is not loaded into RAM
+        with destination.open("wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to save file")
+    
     uploaded_file = UploadedFile(short_code=code, original_filename=file.filename)
 
-    db.add(uploaded_file)
-    db.commit()
-
+    try:
+        db.add(uploaded_file)
+        db.commit()
+    except Exception:
+        destination.unlink(missing_ok=True) # remove orphaned file on disk
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to commit to DB.")
+    
     return {
         "filename": file.filename,
         "short_code": code,
         "saved_to": str(destination)
-        }
+    }
 
 @router.get("/{code}")
 async def download(code: str, db: Session = Depends(get_db)):
