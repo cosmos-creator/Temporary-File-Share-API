@@ -90,11 +90,20 @@ async def download(code: str, db: Session = Depends(get_db)):
     statement = select(UploadedFile).where(UploadedFile.short_code == code)
     file_record = db.execute(statement).scalar_one_or_none()
 
-    if file_record is None:
-        raise HTTPException(status_code=404, detail="FIle not found")
-
     extension = Path(file_record.original_filename).suffix
+
+    path= Path("./data/uploads/") / f"{code}{extension}"
+    filename= file_record.original_filename,
+
+    if file_record is None:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    if not path.exists():
+        db.delete(file_record)
+        db.commit()
+        raise HTTPException(status_code=404, detail="File not found")
+
     return FileResponse(
-        path= Path("./data/uploads/") / f"{code}{extension}",
-        filename= file_record.original_filename,
+        path=path,
+        filename=filename
     )
