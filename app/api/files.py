@@ -30,6 +30,15 @@ async def ping():
 
 @router.post("/uploadfile/")
 def upload(file: UploadFile, db: Session = Depends(get_db)):
+    
+    # check if empty file
+    if file.size == 0:
+        raise HTTPException(status_code=400, detail="Rmpty file not allowed.")
+    
+    # check if file is too large (compared in BYTES)
+    GB_IN_BYTES = 1073741824
+    if file.size > (2 * GB_IN_BYTES):
+        raise HTTPException(status_code=413, detail="File size exceeds 2GB.")
 
     # check for code collision
     code = generate_short_code()
