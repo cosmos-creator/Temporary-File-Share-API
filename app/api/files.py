@@ -1,11 +1,12 @@
-from fastapi import APIRouter, UploadFile, Depends, HTTPException, Request
+from fastapi import APIRouter, UploadFile, Depends, HTTPException, Request, Form
 from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from pathlib import Path
 from app.db import engine
 from app.models.file import UploadedFile
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, UTC
+from enum import Enum
 import shutil
 import uuid
 
@@ -22,7 +23,13 @@ def check_db(code: str, db: Session):
     result = db.execute(statement).scalar_one_or_none()
     # F - if not found(None is returned)
     return result is not None 
-    
+
+class ExpiryOption(Enum):
+    one_hour = "1h"
+    one_day = "1d"
+    one_week = "1w"
+    never = "never"
+
 router = APIRouter()
 
 @router.get("/ping")
@@ -30,8 +37,15 @@ async def ping():
     return {"ping":"pong"}
 
 @router.post("/uploadfile/")
-async def upload(request: Request, file: UploadFile, db: Session = Depends(get_db)):
+async def upload(request: Request, file: UploadFile, expiry: ExpiryOption = Form(ExpiryOption.one_day), db: Session = Depends(get_db)):
 
+    expiry_map = {
+        ExpiryOption.one_hour: timedelta(hours=1),
+        ExpiryOption.one_day: timedelta(days=1),
+        ExpiryOption.one_week: timedelta(weeks=1),
+        ExpiryOption.never: None,
+    }
+    delta = expiry_map[expiry]
     GB_IN_BYTES = 1073741824
     content_length = request.headers.get("content-length")
 
@@ -77,7 +91,7 @@ async def upload(request: Request, file: UploadFile, db: Session = Depends(get_d
     
     uploaded_file = UploadedFile(short_code=code, 
                                 original_filename=file.filename,
-                                expires_at=datetime.now(timezone.utc) + timedelta(hours=24)
+                                expires_at= datetime.now(UTC) + delta if delta else None
                                 )
 
     try:
@@ -93,7 +107,7 @@ async def upload(request: Request, file: UploadFile, db: Session = Depends(get_d
         "short_code": code,
         "saved_to": str(destination),
         "valid_till": uploaded_file.expires_at,
-        "submitted_at": datetime.now(timezone.utc)
+        "submitted_at": datetime.now(UTC)
     }
 
 @router.get("/{code}")
@@ -102,6 +116,9 @@ async def download(code: str, db: Session = Depends(get_db)):
     file_record = db.execute(statement).scalar_one_or_none()
 
     if file_record is None:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    if file_record.expires_at and file_record.expires_at < datetime.now(UTC):
         raise HTTPException(status_code=404, detail="File not found")
 
     extension = Path(file_record.original_filename).suffix
