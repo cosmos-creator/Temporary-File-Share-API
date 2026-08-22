@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from pathlib import Path
 from app.db import engine
 from app.models.file import UploadedFile
+from datetime import datetime, timedelta, timezone
 import shutil
 import uuid
 
@@ -45,7 +46,7 @@ async def upload(request: Request, file: UploadFile, db: Session = Depends(get_d
     if file.size > (2 * GB_IN_BYTES):
         raise HTTPException(status_code=413, detail="File size exceeds 2GB.")
 
-    # check for code collision
+    # create an initial code
     code = generate_short_code()
 
     # generate a unique code
@@ -74,7 +75,10 @@ async def upload(request: Request, file: UploadFile, db: Session = Depends(get_d
     except Exception:
         raise HTTPException(status_code=500, detail="Failed to save file")
     
-    uploaded_file = UploadedFile(short_code=code, original_filename=file.filename)
+    uploaded_file = UploadedFile(short_code=code, 
+                                original_filename=file.filename,
+                                expires_at=datetime.now(timezone.utc) + timedelta(hours=24)
+                                )
 
     try:
         db.add(uploaded_file)
@@ -87,7 +91,9 @@ async def upload(request: Request, file: UploadFile, db: Session = Depends(get_d
     return {
         "filename": file.filename,
         "short_code": code,
-        "saved_to": str(destination)
+        "saved_to": str(destination),
+        "valid_till": uploaded_file.expires_at,
+        "submitted_at": datetime.now(timezone.utc)
     }
 
 @router.get("/{code}")
@@ -95,13 +101,14 @@ async def download(code: str, db: Session = Depends(get_db)):
     statement = select(UploadedFile).where(UploadedFile.short_code == code)
     file_record = db.execute(statement).scalar_one_or_none()
 
+    if file_record is None:
+        raise HTTPException(status_code=404, detail="File not found")
+
     extension = Path(file_record.original_filename).suffix
 
     path= Path("./data/uploads/") / f"{code}{extension}"
-    filename= file_record.original_filename,
+    filename= file_record.original_filename
 
-    if file_record is None:
-        raise HTTPException(status_code=404, detail="File not found")
 
     if not path.exists():
         db.delete(file_record)
