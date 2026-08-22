@@ -37,7 +37,7 @@ async def ping():
     return {"ping":"pong"}
 
 @router.post("/uploadfile/")
-async def upload(request: Request, file: UploadFile, download_limit: int | None = Form(default=None, description="number of times file can be downloaded"), expiry: ExpiryOption = Form(ExpiryOption.one_day), db: Session = Depends(get_db)):
+async def upload(request: Request, file: UploadFile, download_limit: int | None = Form(default=5, description="number of times file can be downloaded"), expiry: ExpiryOption = Form(ExpiryOption.one_day), db: Session = Depends(get_db)):
 
     expiry_map = {
         ExpiryOption.one_hour: timedelta(hours=1),
@@ -91,7 +91,8 @@ async def upload(request: Request, file: UploadFile, download_limit: int | None 
     
     uploaded_file = UploadedFile(short_code=code, 
                                 original_filename=file.filename,
-                                expires_at= datetime.now(UTC) + delta if delta else None
+                                expires_at= datetime.now(UTC) + delta if delta else None,
+                                downloads_remaining= download_limit
                                 )
 
     try:
