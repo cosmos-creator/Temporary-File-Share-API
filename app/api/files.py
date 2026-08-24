@@ -24,6 +24,19 @@ def check_db(code: str, db: Session):
     # F - if not found(None is returned)
     return result is not None 
 
+def decrement_limit(file_record: UploadedFile, db: Session):
+    # do not block downloads
+    if file_record.downloads_remaining is None:
+        # shouldnt be blocked
+        return
+    # block downloads
+    if file_record.downloads_remaining == 0:
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    # decrement
+    file_record.downloads_remaining -= 1
+    db.commit()
+
 class ExpiryOption(Enum):
     one_hour = "1h"
     one_day = "1d"
@@ -118,6 +131,8 @@ async def download(code: str, db: Session = Depends(get_db)):
 
     if file_record is None:
         raise HTTPException(status_code=404, detail="File not found")
+
+    decrement_limit(file_record, db)
 
     if file_record.expires_at and file_record.expires_at < datetime.now(UTC):
         raise HTTPException(status_code=404, detail="File not found")
