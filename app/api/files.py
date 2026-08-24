@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from pathlib import Path
 from app.db import engine
 from app.models.file import UploadedFile
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, UTC, timezone
 from enum import Enum
 import shutil
 import uuid
@@ -134,7 +134,10 @@ async def download(code: str, db: Session = Depends(get_db)):
 
     decrement_limit(file_record, db)
 
-    if file_record.expires_at and file_record.expires_at < datetime.now(UTC):
+    # compatible with postgreSQL
+    # if file_record.expires_at and file_record.expires_at < datetime.now(UTC):
+    # compatiblw with sqlite: depricated
+    if file_record.expires_at and file_record.expires_at < datetime.utcnow():
         raise HTTPException(status_code=404, detail="File not found")
 
     extension = Path(file_record.original_filename).suffix
