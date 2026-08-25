@@ -1,12 +1,15 @@
 from fastapi import FastAPI
 from app.api.files import router as files_router
+from app.services.cleanup import scheduler
 from contextlib import asynccontextmanager
 from app.db import create_db_tables
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_db_tables()
+    scheduler.start()
     yield
+    scheduler.shutdown()
 
 app = FastAPI(lifespan=lifespan)
 
