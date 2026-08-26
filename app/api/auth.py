@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -36,8 +37,8 @@ async def register(info: UserInfo, db: Session = Depends(get_db)):
     }
 
 
-@router.get("/login")
-async def login(info: UserInfo, db: Session = Depends(get_db)):
+@router.post("/login")
+async def login(info: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     stmnt = select(User).where(User.username == info.username)
     user = db.execute(stmnt).scalar_one_or_none()
 

@@ -18,9 +18,10 @@ app = FastAPI(lifespan=lifespan)
 
 # tells the app to serve whatever endpoints are there in files.py
 # at /<endpoint>
-app.include_router(files_router)
-app.include_router(auth_router)
 
 @app.get("/health")
 async def health():
     return { "status" : "ok" }
+
+app.include_router(files_router)
+app.include_router(auth_router)

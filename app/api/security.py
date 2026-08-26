@@ -14,10 +14,10 @@ from app.models.user import User
 
 load_dotenv()
 
-oauth_scheme = OAuth2PasswordBearer(tokenUrl="/login")
+oauth_scheme = OAuth2PasswordBearer(tokenUrl="login")
 SECRET_KEY = os.getenv("SECRET_KEY")
 
-pwd_context = CryptContext(schemes=["brypt"], depricated="auto")
+pwd_context = CryptContext(schemes=["bcrypt"])
 
 
 def get_db():
@@ -49,7 +49,7 @@ def create_jwt(data: dict, expires_at: timedelta = timedelta(minutes=15)):
 
 def verify_jwt(token: str) -> str | None:
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=["SH256"])
+        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
         return payload.get("sub")
     except JWTError:
         return None

@@ -129,7 +129,7 @@ async def upload(request: Request, file: UploadFile, current_user: User = Depend
         "submitted_at": datetime.now(UTC)
     }
 
-@router.get("/{code}")
+@router.get("/download/{code}")
 async def download(code: str, db: Session = Depends(get_db)):
     statement = select(UploadedFile).where(UploadedFile.short_code == code)
     file_record = db.execute(statement).scalar_one_or_none()
