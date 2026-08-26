@@ -1,14 +1,18 @@
-from fastapi import APIRouter, UploadFile, Depends, HTTPException, Request, Form
+import shutil
+import uuid
+from datetime import UTC, datetime, timedelta, timezone
+from enum import Enum
+from pathlib import Path
+
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from pathlib import Path
+
+from app.api.security import get_current_user
 from app.db import engine
 from app.models.file import UploadedFile
-from datetime import datetime, timedelta, UTC, timezone
-from enum import Enum
-import shutil
-import uuid
+from app.models.user import User
 
 
 def get_db():
@@ -49,8 +53,8 @@ router = APIRouter()
 async def ping():
     return {"ping":"pong"}
 
-@router.post("/uploadfile/")
-async def upload(request: Request, file: UploadFile, download_limit: int | None = Form(default=5, description="number of times file can be downloaded"), expiry: ExpiryOption = Form(ExpiryOption.one_day), db: Session = Depends(get_db)):
+@router.post("/upload/")
+async def upload(request: Request, file: UploadFile, current_user: User = Depends(get_current_user), download_limit: int | None = Form(default=5), expiry: ExpiryOption = Form(ExpiryOption.one_day), db: Session = Depends(get_db)):
 
     expiry_map = {
         ExpiryOption.one_hour: timedelta(hours=1),
@@ -103,6 +107,7 @@ async def upload(request: Request, file: UploadFile, download_limit: int | None 
         raise HTTPException(status_code=500, detail="Failed to save file")
     
     uploaded_file = UploadedFile(short_code=code, 
+                                owner_id=current_user.id,
                                 original_filename=file.filename,
                                 expires_at= datetime.now(UTC) + delta if delta else None,
                                 downloads_remaining= download_limit
