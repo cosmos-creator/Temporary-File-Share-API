@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy import select
-from app.models.user import User
-from app.db import engine
 from pydantic import BaseModel
-from app.api.security import hash, verify
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+
+from app.api.security import create_jwt, hash, verify
+from app.db import engine
+from app.models.user import User
 
 def get_db():
     with Session(engine) as session:
@@ -20,7 +21,7 @@ router = APIRouter()
 @router.post("/register")
 async def register(info: UserInfo, db: Session = Depends(get_db)):
     pass_hash = hash(info.password)
-    new_user = User(username=info.username, password= pass_hash)
+    new_user = User(username=info.username, password=pass_hash)
 
     try:
         db.add(new_user)
@@ -32,4 +33,24 @@ async def register(info: UserInfo, db: Session = Depends(get_db)):
     return {
         "username": info.username,
         "id": new_user.id
+    }
+
+
+@router.get("/login")
+async def login(info: UserInfo, db: Session = Depends(get_db)):
+    stmnt = select(User).where(User.username == info.username)
+    user = db.execute(stmnt).scalar_one_or_none()
+
+    if user is None:
+        raise HTTPException(
+            status_code=401, detail="username or password incorrect")
+
+    if not verify(info.password, user.password):
+        raise HTTPException(
+            status_code=401, detail="username or password incorrect")
+
+    token = create_jwt(data={"sub": user.username})
+    return {
+        "access_token": token,
+        "token_type": "bearer"
     }
