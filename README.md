@@ -68,6 +68,8 @@ You'll need a `.env` file with a `SECRET_KEY` for JWT signing — see `.env.exam
 
 | Method | Endpoint | Description |
 |---|---|---|
+| `GET` | `/ping` | Basic liveness check |
+| `GET` | `/health` | Health check |
 | `POST` | `/register` | Create a new user account |
 | `POST` | `/login` | Authenticate and receive a JWT |
 | `POST` | `/upload/` | Upload a file (requires auth) — accepts an expiry option and optional download limit |
