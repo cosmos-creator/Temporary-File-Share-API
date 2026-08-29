@@ -2,7 +2,7 @@ from sqlalchemy import create_engine, String
 from sqlalchemy.orm import DeclarativeBase
 
 sqlite_file = "db.sqlite3"
-sqlite_url = f"sqlite:///./{sqlite_file}"
+sqlite_url = f"sqlite:///./data/{sqlite_file}"
 
 engine = create_engine(sqlite_url)
 
