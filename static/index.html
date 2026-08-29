@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TFS—Temporary file share</title>
+<style>
+  :root {
+    --bg: #0f1210;
+    --panel: #161a17;
+    --line: #262b27;
+    --text: #e7ece8;
+    --muted: #8b968e;
+    --accent: #7fd88f;
+    --accent-dim: #2e4a34;
+    --error: #e8846b;
+    --mono: "IBM Plex Mono", "SF Mono", Consolas, monospace;
+    --sans: "IBM Plex Sans", -apple-system, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 48px 20px;
+  }
+
+  .wrap {
+    width: 100%;
+    max-width: 480px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 4px;
+  }
+
+  .brand .mark {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--accent);
+    border: 1px solid var(--accent-dim);
+    padding: 2px 7px;
+    border-radius: 3px;
+    letter-spacing: 0.05em;
+  }
+
+  .brand h1 {
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+
+  .sub {
+    color: var(--muted);
+    font-size: 13.5px;
+    margin: 0 0 32px;
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 22px;
+    margin-bottom: 16px;
+  }
+
+  .panel h2 {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin: 0 0 16px;
+    font-weight: 600;
+  }
+
+  label {
+    display: block;
+    font-size: 12.5px;
+    color: var(--muted);
+    margin: 14px 0 6px;
+  }
+  label:first-of-type { margin-top: 0; }
+
+  input, select {
+    width: 100%;
+    background: #0d100e;
+    border: 1px solid var(--line);
+    color: var(--text);
+    padding: 9px 10px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: var(--sans);
+  }
+
+  input[type="file"] {
+    padding: 8px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  input:focus, select:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  button {
+    width: 100%;
+    margin-top: 18px;
+    background: var(--accent);
+    color: #0d140f;
+    border: none;
+    padding: 11px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: var(--sans);
+  }
+
+  button:hover { filter: brightness(1.08); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  button.ghost {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--line);
+    font-weight: 500;
+  }
+
+  .status {
+    font-size: 12.5px;
+    margin-top: 12px;
+    font-family: var(--mono);
+  }
+  .status.ok { color: var(--accent); }
+  .status.err { color: var(--error); }
+
+  .session {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .session strong { color: var(--text); font-family: var(--mono); }
+  .session button.ghost { width: auto; margin: 0; padding: 6px 12px; font-size: 12px; }
+
+  .ticket {
+    border: 1px dashed var(--accent-dim);
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: 16px;
+    background: #0d140f;
+  }
+  .ticket .link-row {
+    display: flex;
+    gap: 8px;
+  }
+  .ticket code {
+    flex: 1;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--accent);
+    background: transparent;
+    padding: 8px 0;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  .ticket .meta {
+    display: flex;
+    gap: 14px;
+    margin-top: 8px;
+    font-size: 11.5px;
+    color: var(--muted);
+    font-family: var(--mono);
+  }
+
+  .hidden { display: none !important; }
+
+  a.file-link { color: var(--accent); text-decoration: none; }
+  a.file-link:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="brand">
+    <span class="mark">tfs</span>
+    <h1>temporary file share</h1>
+  </div>
+  <p class="sub">Drop a file, get a link. Links expire or self-destruct on your terms.</p>
+
+  <!-- AUTH PANEL -->
+  <div class="panel" id="auth-panel">
+    <h2>Session</h2>
+
+    <div id="logged-out">
+      <label for="username">Username</label>
+      <input id="username" type="text" autocomplete="username" placeholder="yourname">
+
+      <label for="password">Password</label>
+      <input id="password" type="password" autocomplete="current-password" placeholder="••••••••">
+
+      <div class="row" style="margin-top: 18px;">
+        <button id="login-btn">Log in</button>
+        <button id="register-btn" class="ghost">Register</button>
+      </div>
+
+      <div id="auth-status" class="status hidden"></div>
+    </div>
+
+    <div id="logged-in" class="hidden">
+      <div class="session">
+        <span>Signed in as <strong id="whoami"></strong></span>
+        <button class="ghost" id="logout-btn">Log out</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- UPLOAD PANEL -->
+  <div class="panel" id="upload-panel">
+    <h2>Upload</h2>
+
+    <label for="file-input">File</label>
+    <input id="file-input" type="file">
+
+    <div class="row">
+      <div>
+        <label for="expiry">Expires</label>
+        <select id="expiry">
+          <option value="1h">1 hour</option>
+          <option value="1d" selected>1 day</option>
+          <option value="1w">1 week</option>
+          <option value="never">Never</option>
+        </select>
+      </div>
+      <div>
+        <label for="limit">Download limit</label>
+        <input id="limit" type="number" min="1" placeholder="Unlimited">
+      </div>
+    </div>
+
+    <button id="upload-btn">Upload</button>
+
+    <div id="upload-status" class="status hidden"></div>
+
+    <div id="ticket" class="ticket hidden">
+      <div class="link-row">
+        <code id="ticket-link"></code>
+        <button class="ghost" id="copy-btn" style="width: auto; margin: 0; padding: 8px 12px;">Copy</button>
+      </div>
+      <div class="meta">
+        <span id="ticket-name"></span>
+        <span id="ticket-expiry"></span>
+        <span id="ticket-limit"></span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const API_BASE = window.location.origin; // same origin as this page, assumed served by FastAPI
+  let token = null;
+  let currentUsername = null;
+
+  const $ = (id) => document.getElementById(id);
+
+  function showStatus(el, message, ok) {
+    el.textContent = message;
+    el.classList.remove("hidden", "ok", "err");
+    el.classList.add(ok ? "ok" : "err");
+  }
+
+  function setSession(username, tok) {
+    token = tok;
+    currentUsername = username;
+    localStorage.setItem("tfs_token", tok);
+    localStorage.setItem("tfs_username", username);
+    $("logged-out").classList.add("hidden");
+    $("logged-in").classList.remove("hidden");
+    $("whoami").textContent = username;
+  }
+
+  function clearSession() {
+    token = null;
+    currentUsername = null;
+    localStorage.removeItem("tfs_token");
+    localStorage.removeItem("tfs_username");
+    $("logged-out").classList.remove("hidden");
+    $("logged-in").classList.add("hidden");
+  }
+
+  // restore session from a previous page load, if any
+  (function restoreSession() {
+    const savedToken = localStorage.getItem("tfs_token");
+    const savedUsername = localStorage.getItem("tfs_username");
+    if (savedToken && savedUsername) {
+      setSession(savedUsername, savedToken);
+    }
+  })();
+
+  async function register() {
+    const username = $("username").value.trim();
+    const password = $("password").value;
+    if (!username || !password) return showStatus($("auth-status"), "Enter a username and password first.", false);
+
+    try {
+      const res = await fetch(`${API_BASE}/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) return showStatus($("auth-status"), data.detail || "Registration failed.", false);
+      showStatus($("auth-status"), "Registered. You can log in now.", true);
+    } catch (e) {
+      showStatus($("auth-status"), "Could not reach the server.", false);
+    }
+  }
+
+  async function login() {
+    const username = $("username").value.trim();
+    const password = $("password").value;
+    if (!username || !password) return showStatus($("auth-status"), "Enter a username and password first.", false);
+
+    try {
+      const body = new URLSearchParams();
+      body.append("username", username);
+      body.append("password", password);
+
+      const res = await fetch(`${API_BASE}/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: body,
+      });
+      const data = await res.json();
+      if (!res.ok) return showStatus($("auth-status"), data.detail || "Invalid username or password.", false);
+      setSession(username, data.access_token);
+    } catch (e) {
+      showStatus($("auth-status"), "Could not reach the server.", false);
+    }
+  }
+
+  function logout() {
+    clearSession();
+    $("ticket").classList.add("hidden");
+  }
+
+  async function upload() {
+    if (!token) return showStatus($("upload-status"), "Log in first.", false);
+
+    const fileInput = $("file-input");
+    if (!fileInput.files.length) return showStatus($("upload-status"), "Choose a file first.", false);
+
+    const formData = new FormData();
+    formData.append("file", fileInput.files[0]);
+    formData.append("expiry", $("expiry").value);
+    const limit = $("limit").value;
+    if (limit) formData.append("download_limit", limit);
+
+    $("upload-btn").disabled = true;
+    showStatus($("upload-status"), "Uploading…", true);
+
+    try {
+      const res = await fetch(`${API_BASE}/upload/`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token}` },
+        body: formData,
+      });
+      const data = await res.json();
+      $("upload-btn").disabled = false;
+
+      if (!res.ok) return showStatus($("upload-status"), data.detail || "Upload failed.", false);
+
+      $("upload-status").classList.add("hidden");
+      const link = `${API_BASE}/download/${data.short_code}`;
+      $("ticket-link").textContent = link;
+      $("ticket-name").textContent = data.filename || fileInput.files[0].name;
+      $("ticket-expiry").textContent = data.valid_till
+        ? `expires ${new Date(data.valid_till).toLocaleString()}`
+        : "never expires";
+      $("ticket-limit").textContent = limit ? `${limit} download(s)` : "Unlimited downloads";
+      $("ticket").classList.remove("hidden");
+    } catch (e) {
+      $("upload-btn").disabled = false;
+      showStatus($("upload-status"), "Could not reach the server.", false);
+    }
+  }
+
+  $("login-btn").addEventListener("click", login);
+  $("register-btn").addEventListener("click", register);
+  $("logout-btn").addEventListener("click", logout);
+  $("upload-btn").addEventListener("click", upload);
+  $("copy-btn").addEventListener("click", () => {
+    navigator.clipboard.writeText($("ticket-link").textContent);
+    $("copy-btn").textContent = "Copied";
+    setTimeout(() => ($("copy-btn").textContent = "Copy"), 1200);
+  });
+</script>
+</body>
+</html>
