@@ -1,10 +1,9 @@
 from sqlalchemy import create_engine, String
 from sqlalchemy.orm import DeclarativeBase
 
-sqlite_file = "db.sqlite3"
-sqlite_url = f"sqlite:///./data/{sqlite_file}"
+db_url = "postgresql://tfs:tfs@db:5432/tfs"
 
-engine = create_engine(sqlite_url)
+engine = create_engine(db_url)
 
 # tells that any class inheriting from this is a db table
 class Base(DeclarativeBase):
