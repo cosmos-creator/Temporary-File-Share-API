@@ -17,7 +17,6 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-app.mount("/", StaticFiles(directory="static", html=True), name="TFS")
 # tells the app to serve whatever endpoints are there in files.py
 # at /<endpoint>
 
@@ -27,3 +26,5 @@ async def health():
 
 app.include_router(files_router)
 app.include_router(auth_router)
+
+app.mount("/", StaticFiles(directory="static", html=True), name="TFS")
