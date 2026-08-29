@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 from app.api.auth import router as auth_router
 from app.api.files import router as files_router
@@ -16,6 +17,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+app.mount("/", StaticFiles(directory="static", html=True), name="TFS")
 # tells the app to serve whatever endpoints are there in files.py
 # at /<endpoint>
 
