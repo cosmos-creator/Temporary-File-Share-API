@@ -139,10 +139,10 @@ async def download(code: str, db: Session = Depends(get_db)):
 
     decrement_limit(file_record, db)
 
-    # compatible with postgreSQL
-    # if file_record.expires_at and file_record.expires_at < datetime.now(UTC):
     # compatiblw with sqlite: depricated
-    if file_record.expires_at and file_record.expires_at < datetime.utcnow():
+    # if file_record.expires_at and file_record.expires_at < datetime.utcnow():
+    # compatible with postgreSQL
+    if file_record.expires_at and file_record.expires_at < datetime.now(UTC):
         raise HTTPException(status_code=404, detail="File not found")
 
     extension = Path(file_record.original_filename).suffix
