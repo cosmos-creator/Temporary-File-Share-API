@@ -9,7 +9,7 @@ from passlib.context import CryptContext
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db import engine
+from app.db import get_db
 from app.models.user import User
 
 load_dotenv()
@@ -19,10 +19,6 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 
 pwd_context = CryptContext(schemes=["bcrypt"])
 
-
-def get_db():
-    with Session(engine) as session:
-        yield session
 
 def get_current_user(token: str = Depends(oauth_scheme), db: Session = Depends(get_db)):
     username = verify_jwt(token)

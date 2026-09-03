@@ -6,12 +6,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.security import create_jwt, hash, verify
-from app.db import engine
+from app.db import get_db
 from app.models.user import User
 
-def get_db():
-    with Session(engine) as session:
-        yield session
 
 class UserInfo(BaseModel):
     username: str

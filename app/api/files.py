@@ -10,14 +10,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.security import get_current_user
-from app.db import engine
+from app.db import get_db
 from app.models.file import UploadedFile
 from app.models.user import User
 
-
-def get_db():
-    with Session(engine) as session:
-        yield session
 
 def generate_short_code(length: int = 8):
     return uuid.uuid4().hex[:length]
